@@ -2,11 +2,13 @@
 
 This project is a simulation written in Python utilitzing the `RK45` numerical integration algorithm to show potential control of an autonomous vehicle. This simulation implements a PID controller to achieve a desired velocity and y-axis offset from given initial conditions. Results are displayed in 3D using panda3d with 2D plotting also available.
 
-Example 3D visualization:
+_Example 3D visualization:_
+
 ![demo screenshot](./resources/vehicle-simulation-demo.png)
 
-Example plot visualization:
-![demo screenshot](./resources/vehicle-simulation-demo.png)
+_Example plot visualization:_
+
+![demo screenshot](./resources/simulation-plot-demo.png)
 
 ## Running
 
