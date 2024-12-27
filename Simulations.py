@@ -5,6 +5,7 @@ from direct.task import Task
 from direct.gui.OnscreenText import OnscreenText
 import numpy as np
 from math import floor
+import matplotlib.pyplot as plt
 
 def clamp(n, smallest, largest): 
     return max(smallest, min(n, largest))
@@ -24,31 +25,22 @@ class PIDController:
         self.previous_error = error
         return output
 
-desired_velocity = 10.0  # Desired constant velocity in m/s
-desired_y_position = 0.0  # Desired y position (maintain zero movement in y-axis)
+# TODO: Make these user-defined. Add PID controllers for each state to be controlled
+
 
 class Car(ShowBase):
     def __init__(self, x_0 = 0, y_0 = 0, v_0 = 0, heading_0 = 0, 
                  yaw_rate_0 = 0, side_slip_0 = 0, a_0 = 0, steering_0 = 0, 
                  wheel_base = 2):
-        
         ShowBase.__init__(self)
+        
         # Set up the window properties
         self.setBackgroundColor(0, 0, 0) # RGB values for black
         props = WindowProperties()
         props.setTitle("Car Simulation")
         self.win.requestProperties(props)
-        
-        # Init state and input vars
+      
         self.wheel_base = wheel_base
-        self.wheel_heading = heading_0
-        self.steering_angle = steering_0
-        self.x = x_0
-        self.y = y_0
-        self.vel = v_0
-        self.yaw_rate = yaw_rate_0
-        self.side_slip = side_slip_0
-        self.accel = a_0
         self.initial_conditions = np.array([x_0, y_0, heading_0, v_0, yaw_rate_0, side_slip_0])
         
         # Initialize the PID controllers
@@ -93,17 +85,22 @@ class Car(ShowBase):
         self.draw_axes()
         
         # Create OnscreenText to display speed and variable names 
-        self.pos_text_x = OnscreenText(text=f"x: {self.car_body.getX()}", pos=(1.3, 0.9), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight) 
-        self.pos_text_y = OnscreenText(text=f"y: {self.car_body.getY()}", pos=(1.3, 0.8), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight) 
-        self.heading_angle_text = OnscreenText(text=f"heading angle (deg): {self.wheel_heading}", pos=(1.3, 0.7), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight)
-        self.steering_angle_text = OnscreenText(text=f"steering angle (deg): {self.steering_angle}", pos=(1.3, 0.6), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight)
-        self.velocity_text = OnscreenText(text=f"velocity: {self.steering_angle}", pos=(1.3, 0.5), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight)
+        self.pos_text_x = OnscreenText(text=f"x: {x_0}", pos=(1.3, 0.9), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight) 
+        self.pos_text_y = OnscreenText(text=f"y: {y_0}", pos=(1.3, 0.8), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight) 
+        self.heading_angle_text = OnscreenText(text=f"heading angle (deg): {heading_0}", pos=(1.3, 0.7), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight)
+        self.steering_angle_text = OnscreenText(text=f"steering angle (deg): {steering_0}", pos=(1.3, 0.6), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight)
+        self.velocity_text = OnscreenText(text=f"velocity: {v_0}", pos=(1.3, 0.5), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight)
         self.time_text = OnscreenText(text=f"time: {0}", pos=(1.3, 0.4), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight)
         
-    def run(self, timespan = 10, dt = 0.1):
-        # Solve the ODE and store results
+    
+    # Solve the ODE and visualize results
+    def run(self, timespan = 10, dt = 0.1, desired_velocity=10.0, desired_y_pos=0.0, show_plot = False):
         self.dt = dt
+        self.desired_velocity = desired_velocity  
+        self.desired_y_position = desired_y_pos
+        
         t_span = (0, timespan)
+        
         solution = solve_ivp(self.ode_wrapper, t_span, self.initial_conditions, method='RK45',
                              t_eval=np.linspace(0, timespan, floor(timespan/dt)))
         self.t = solution.t
@@ -111,8 +108,26 @@ class Car(ShowBase):
         self.cur_step = 0
                 
         self.taskMgr.add(self.simulate_task, "SimulateTask")
+        
+        if show_plot:
+            self.plot_results()
+            
         ShowBase.run(self)
 
+    # Plot the state variables
+    def plot_results(self):
+        plt.figure()
+        plt.plot(self.t, self.states[0], label='x (position)')
+        plt.plot(self.t, self.states[1], label='y (position)')
+        plt.plot(self.t, self.states[2], label='theta (orientation)')
+        plt.plot(self.t, self.states[3], label='v (velocity)')
+        plt.xlabel('Time (s)')
+        plt.ylabel('State Variables')
+        plt.legend()
+        plt.title('State Variables Over Time')
+        plt.show()
+        
+    # Equations of motion for the car
     def state_space_equations(self, t, x, u):
         v = x[3]  # Velocity
         theta = x[2]  # Orientation angle
@@ -125,7 +140,6 @@ class Car(ShowBase):
         dxdt[2] = (v / self.wheel_base) * np.tan(delta)  # Update orientation angle rate of change
         dxdt[3] = u[0]  # Update velocity rate of change (acceleration input)
         dxdt[4] = 0  # Yaw acceleration rate
-        dxdt[5] = 0  # Sideslip angle rate of change
         return dxdt
 
     # Determines what inputs go into the next iteration
@@ -134,11 +148,11 @@ class Car(ShowBase):
         current_y_position = x[1] 
         
         # Velocity control
-        velocity_error = desired_velocity - current_velocity
+        velocity_error = self.desired_velocity - current_velocity
         acceleration = self.pid_vel.control(velocity_error, dt=0.1)
         
         # Y-axis position control
-        y_position_error = desired_y_position - current_y_position
+        y_position_error = self.desired_y_position - current_y_position
         steering_angle = self.pid_y_position.control(y_position_error, dt=0.1)
         
         # Clamp the steering angle 
@@ -162,11 +176,6 @@ class Car(ShowBase):
         axes.moveTo(0, 0, 0) 
         axes.drawTo(1, 0, 0) 
 
-        # Y-axis (green) 
-        axes.setColor(0, 1, 0, 1) 
-        axes.moveTo(0, 0, 0) 
-        axes.drawTo(0, 1, 0) 
-
         # Z-axis (blue) 
         axes.setColor(0, 0, 1, 1) 
         axes.moveTo(0, 0, 0) 
@@ -178,17 +187,8 @@ class Car(ShowBase):
         axis_path.setPos(-1.2, 0, 0.8) 
         axis_path.setScale(0.1)
         
-
-    def add_axis_label(self, text, x, y, z, color): 
-        label = TextNode('axis_label') 
-        label.setText(text) 
-        label.setTextColor(color) 
-        label_np = self.render.attachNewNode(label) 
-        label_np.setPos(x, y, z) 
-        label_np.setScale(0.4)
-        
+    # Create a small orange sphere at the position specified
     def createSphere(self, position):
-        # Create a small orange sphere 
         sphere = self.loader.loadModel("models/misc/sphere") 
         sphere.setScale(0.1, 0.1, 0.1) 
         sphere.setColor(1, 0.5, 0, 1) # Orange color 
@@ -203,9 +203,8 @@ class Car(ShowBase):
         self.steering_angle_text.setText(f"steering angle (deg): {steering:.3f}")
         self.time_text.setText(f"time: {time:.2f}")
         
-    def translate(self, x, y):
-        self.parent.setPos(x,y,self.parent.getZ())
-    
+    # Rotates wheels continuously around axel and updates heading angle
+    #TODO: Allow for rotation speed to be adjusted
     def rotate_wheels(self, task, heading = 0):
         angle = task.time * 360 % 360
         for index,wheel in enumerate(self.wheels):
@@ -213,7 +212,6 @@ class Car(ShowBase):
                 yaw = heading
             else:
                 yaw = 0
-                
             wheel.setHpr(90 + yaw, angle, 0)
             
     def update_camera(self):
@@ -222,8 +220,7 @@ class Car(ShowBase):
         self.camera.lookAt(self.parent)
         
     def simulate_task(self, task):
-                
-        # Find the index of the closest time in the IVP solution 
+        # Find the index of the closest time in the IVP solution set
         current_time = task.time
         index = np.searchsorted(self.t, current_time) 
         
@@ -251,8 +248,9 @@ class Car(ShowBase):
         
         return Task.cont
         
-        
+
+# Define simulation parameters and run the simulation
 app = Car(x_0=0, y_0=5, v_0=0, heading_0=(np.pi/4), a_0=0, steering_0=0, 
           yaw_rate_0=0, side_slip_0=0, wheel_base=2.5)
-app.run(timespan=10, dt=0.1)
+app.run(timespan=10, dt=0.1, desired_velocity=10.0, desired_y_pos=0.0, show_plot=False)
 
