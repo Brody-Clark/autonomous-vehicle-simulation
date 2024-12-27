@@ -33,7 +33,6 @@ class Car(ShowBase):
                  wheel_base = 2):
         
         ShowBase.__init__(self)
-        
         # Set up the window properties
         self.setBackgroundColor(0, 0, 0) # RGB values for black
         props = WindowProperties()
@@ -102,16 +101,16 @@ class Car(ShowBase):
         self.time_text = OnscreenText(text=f"time: {0}", pos=(1.3, 0.4), scale=0.055, fg=(1,1,0,1), align=TextNode.ARight)
         
     def run(self, timespan = 10, dt = 0.1):
-        # Solve the ODE
+        # Solve the ODE and store results
+        self.dt = dt
         t_span = (0, timespan)
         solution = solve_ivp(self.ode_wrapper, t_span, self.initial_conditions, method='RK45',
                              t_eval=np.linspace(0, timespan, floor(timespan/dt)))
         self.t = solution.t
         self.states = solution.y
         self.cur_step = 0
-        
+                
         self.taskMgr.add(self.simulate_task, "SimulateTask")
-        
         ShowBase.run(self)
 
     def state_space_equations(self, t, x, u):
@@ -145,43 +144,41 @@ class Car(ShowBase):
         # Clamp the steering angle 
         delta_max = np.radians(30) # Maximum steering angle in radians
         steering_angle = clamp(steering_angle,-delta_max, delta_max)
-        
+                
         return np.array([acceleration, steering_angle])
 
     # Define the ODE wrapper function
     def ode_wrapper(self, t, x):
         u = self.input_function(t, x) 
+
         return self.state_space_equations(t, x, u)
 
     def draw_axes(self): 
-      axes = LineSegs() 
-      axes.setThickness(2.0) 
-      
-      # X-axis (red) 
-      axes.setColor(1, 0, 0, 1) 
-      axes.moveTo(0, 0, 0) 
-      axes.drawTo(1, 0, 0) 
-      
-      # Y-axis (green) 
-      axes.setColor(0, 1, 0, 1) 
-      axes.moveTo(0, 0, 0) 
-      axes.drawTo(0, 1, 0) 
-      
-      # Z-axis (blue) 
-      axes.setColor(0, 0, 1, 1) 
-      axes.moveTo(0, 0, 0) 
-      axes.drawTo(0, 0, 1) 
-      
-      axes_node = axes.create() 
-      axes_np = self.render.attachNewNode(axes_node) 
-      axes_np.setPos(-10.5, 1.0, 4.0) # Position in the upper left corner 
-      
-      # Add labels to the tips of the axes 
-      self.add_axis_label("X", -9.4, 1.0, 3.8, (1, 0, 0, 1)) 
-      self.add_axis_label("Y", -10.5, 2, 4, (0, 1, 0, 1)) 
-      self.add_axis_label("Z", -10.25, 1, 5, (0, 0, 1, 1))
-    #   axes_np.setScale(0.8) # Scale down the axes
-    
+        axes = LineSegs() 
+        axes.setThickness(2.0) 
+
+        # X-axis (red) 
+        axes.setColor(1, 0, 0, 1) 
+        axes.moveTo(0, 0, 0) 
+        axes.drawTo(1, 0, 0) 
+
+        # Y-axis (green) 
+        axes.setColor(0, 1, 0, 1) 
+        axes.moveTo(0, 0, 0) 
+        axes.drawTo(0, 1, 0) 
+
+        # Z-axis (blue) 
+        axes.setColor(0, 0, 1, 1) 
+        axes.moveTo(0, 0, 0) 
+        axes.drawTo(0, 0, 1) 
+
+        axes_node = axes.create() 
+        axis_path = NodePath(axes_node) # Attach the coordinate axis to aspect2d 
+        axis_path.reparentTo(aspect2d) # Position the coordinate axis in the upper left corner 
+        axis_path.setPos(-1.2, 0, 0.8) 
+        axis_path.setScale(0.1)
+        
+
     def add_axis_label(self, text, x, y, z, color): 
         label = TextNode('axis_label') 
         label.setText(text) 
@@ -206,19 +203,14 @@ class Car(ShowBase):
         self.steering_angle_text.setText(f"steering angle (deg): {steering:.3f}")
         self.time_text.setText(f"time: {time:.2f}")
         
-
-        
-    def set_wheel_heading(self, heading):
-        self.wheel_heading = heading
-        
     def translate(self, x, y):
         self.parent.setPos(x,y,self.parent.getZ())
     
-    def rotate_wheels(self, task):
+    def rotate_wheels(self, task, heading = 0):
         angle = task.time * 360 % 360
         for index,wheel in enumerate(self.wheels):
             if index in [2,3]:
-                yaw = self.wheel_heading
+                yaw = heading
             else:
                 yaw = 0
                 
@@ -231,10 +223,6 @@ class Car(ShowBase):
         
     def simulate_task(self, task):
                 
-        # Update vehicle and variable text
-        self.rotate_wheels(task)
-        
-        
         # Find the index of the closest time in the IVP solution 
         current_time = task.time
         index = np.searchsorted(self.t, current_time) 
@@ -244,12 +232,15 @@ class Car(ShowBase):
             pos = Point3(self.states[0][index],self.states[1][index],0 )
             
             theta = self.states[2][index]
+            vel = self.states[3][index]
             
             self.parent.setPos(pos) 
             self.parent.setHpr(Vec3(np.degrees(theta), 0, 0))
-            
-            self.update_text(x=pos.getX(), y=pos.getY(), heading=theta, velocity=self.states[3][index], 
-                             steering=self.states[4][index], time=task.time)
+            steering_angle = np.arctan((theta/self.dt)*self.wheel_base/vel)
+            self.rotate_wheels(task, np.degrees(steering_angle))
+                
+            self.update_text(x=pos.getX(), y=pos.getY(), heading=np.degrees(theta), velocity=vel, 
+                             steering=np.degrees(steering_angle), time=task.time)
             
             self.createSphere(pos)
         
@@ -261,6 +252,7 @@ class Car(ShowBase):
         return Task.cont
         
         
-app = Car(x_0=0, y_0=5, v_0=0, heading_0=(np.pi/4), a_0=0, steering_0=0, yaw_rate_0=0, side_slip_0=0, wheel_base=2.5)
-app.run()
+app = Car(x_0=0, y_0=5, v_0=0, heading_0=(np.pi/4), a_0=0, steering_0=0, 
+          yaw_rate_0=0, side_slip_0=0, wheel_base=2.5)
+app.run(timespan=10, dt=0.1)
 
