@@ -25,9 +25,6 @@ class PIDController:
         self.previous_error = error
         return output
 
-# TODO: Make these user-defined. Add PID controllers for each state to be controlled
-
-
 class Car(ShowBase):
     def __init__(self, x_0 = 0, y_0 = 0, v_0 = 0, heading_0 = 0, 
                  yaw_rate_0 = 0, side_slip_0 = 0, a_0 = 0, steering_0 = 0, 
