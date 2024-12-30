@@ -35,8 +35,11 @@ $$ u = [\alpha,  \delta] $$
 Where:
 
 $$ v \text{ is the speed in the car's forward direction} $$
+
 $$ \theta \text{ is the heading angle with respect to the x-axis} $$
+
 $$ \delta \text{ is a steering angle} $$
+
 $$ \alpha \text{ is acceleration} $$
 
 ## Extended Kalman Filter
@@ -54,17 +57,27 @@ $$ P_{k|k-1} = F_k P_{k-1|k-1} F_k^T + Q_k $$
 ### Update Step
 
 $$ K_k = P_{k|k-1} H_k^T (H_k P_{k|k-1} H_k^T + R_k)^{-1} $$
+
 $$ \hat{x}_{k|k} = \hat{x}_{k|k-1} + K_k (z_k - h(\hat{x}_{k|k-1})) $$
+
 $$ P_{k|k} = (I - K_k H_k) P_{k|k-1} $$
 
 Where:
 
 $$ \hat{x}_{k|k-1} \text{ is the predicted state estimate} $$
+
 $$ P_{k|k-1} \text{ is the predicted estimate covariance} $$
+
 $$ F_k \text{ is the Jacobian of the motion model} $$
+
 $$ Q_k \text{ is the process noise covariance} $$
+
 $$ K_k \text{ is the Kalman gain} $$
+
 $$ H_k \text{ is the Jacobian of the measurement model} $$
+
 $$ R_k \text{ is the measurement noise covariance} $$
+
 $$ z_k \text{ is the measurement vector} $$
-$$ h\hat{x}_{k|k-1} \text{ is the measurement model} $$
+
+$$ h \hat{x}_{k|k-1} \text{ is the measurement model} $$
