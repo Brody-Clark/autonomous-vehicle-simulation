@@ -33,6 +33,7 @@ With input vector:
 $$ u = [\alpha,  \delta] $$
 
 Where:
+
 $$v \text{ is the speed in the car's forward direction}$$
 $$\theta \text{ is the heading angle with respect to the x-axis}$$
 $$\delta \text{ is a steering angle}$$
@@ -59,6 +60,7 @@ $$ \hat{x}_{k|k} = \hat{x}_{k|k-1} + K_k (z_k - h(\hat{x}_{k|k-1})) $$
 $$ P_{k|k} = (I - K_k H_k) P_{k|k-1} $$
 
 Where:
+
 $$\hat{x}_{k|k-1} \text{ is the predicted state estimate}$$
 $$P_{k|k-1} \text{ is the predicted estimate covariance}$$
 $$F_k \text{ is the Jacobian of the motion model}$$
@@ -68,4 +70,3 @@ $$H_k \text{ is the Jacobian of the measurement model}$$
 $$R_k \text{ is the measurement noise covariance}$$
 $$z_k \text{ is the measurement vector}$$
 $$h(\hat{x}_{k|k-1}) \text{ is the measurement model}$$
-
