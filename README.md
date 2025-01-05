@@ -2,11 +2,11 @@
 
 This project is a simulation written in Python utilizing the `RK45` numerical integration algorithm to demonstrate control of an autonomous vehicle model. This simulation utilies a PID control loop to achieve a desired velocity and y-axis offset from given initial conditions and an Extended Kalman filter to estimate state from modeled sensors. Results are displayed in 3D using [panda3d](https://www.panda3d.org/) with 2D plotting also available via [matplotlib](https://matplotlib.org/).
 
-_Example 3D visualization:_
+_Example 3D visualization with initial y-axis and heading angle offsets:_
 
 ![demo screenshot](./resources/vehicle-simulation-demo.png)
 
-_Example plot visualization with initial y-axis and heading angle offsets:_
+_Example plot visualization:_
 
 ![demo screenshot](./resources/simulation-plot-demo.png)
 
