@@ -6,7 +6,7 @@ _Example 3D visualization:_
 
 ![demo screenshot](./resources/vehicle-simulation-demo.png)
 
-_Example plot visualization:_
+_Example plot visualization with initial y-axis and heading angle offsets:_
 
 ![demo screenshot](./resources/simulation-plot-demo.png)
 
